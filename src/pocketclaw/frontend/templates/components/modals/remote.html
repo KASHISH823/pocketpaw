@@ -1,0 +1,72 @@
+<!--
+  PocketPaw Dashboard - Remote Access Modal
+
+  Changes (2026-02-03):
+  - Extracted from monolithic index.html
+  - QR code for mobile login, Cloudflare tunnel controls
+  - Token regeneration
+-->
+<!-- Remote Access Modal -->
+<div class="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-md p-4" x-show="showRemote" x-transition.opacity @click.self="showRemote = false">
+    <div class="w-full max-w-[400px] flex flex-col bg-[#1c1c1e]/95 backdrop-blur-xl border border-[var(--glass-border)] rounded-[20px] shadow-2xl animate-[modalPop_0.25s_ease-out] overflow-hidden" @click.stop>
+        <div class="flex items-center justify-between px-6 py-5 border-b border-[var(--glass-border)] shrink-0">
+            <h2 class="text-[17px] font-semibold">Remote Access</h2>
+            <button class="p-2 -mr-2 text-[var(--text-secondary)] hover:text-white hover:bg-white/10 rounded-lg transition-colors" @click="showRemote = false"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <div class="p-6">
+            <div class="flex flex-col gap-6 items-center text-center">
+                
+                <!-- QR Code -->
+                <div class="bg-white p-3 rounded-2xl shadow-lg">
+                    <img :src="'/api/qr?t=' + Date.now()" alt="Scan to Login" class="w-48 h-48 block" />
+                </div>
+                
+                <p class="text-white/60 text-[13px] leading-relaxed max-w-[260px]">
+                    Scan with your phone to access PocketPaw remotely.
+                </p>
+
+                <!-- Tunnel Controls -->
+                <div class="w-full bg-black/30 p-4 rounded-xl border border-[var(--glass-border)] flex flex-col gap-3">
+                    <div class="flex justify-between items-center">
+                        <span class="text-[13px] font-medium text-white/90">Cloudflare Tunnel</span>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border" 
+                                :class="remoteStatus.active ? 'bg-[var(--success-color)]/10 text-[var(--success-color)] border-[var(--success-color)]/20' : 'bg-white/5 text-white/40 border-white/10'"
+                                x-text="remoteStatus.active ? 'ONLINE' : 'OFFLINE'">
+                        </span>
+                    </div>
+                    
+                    <div x-show="remoteStatus.active" class="text-[11px] text-[var(--accent-color)] break-all bg-black/40 p-2.5 rounded-lg border border-white/5 font-mono text-left">
+                        <a :href="remoteStatus.url" target="_blank" class="hover:underline" x-text="remoteStatus.url"></a>
+                    </div>
+                    
+                    <div class="flex gap-2 mt-1">
+                        <button class="w-full bg-[var(--accent-color)] hover:bg-[var(--accent-hover)] text-white py-2 rounded-[8px] text-[13px] font-medium transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" 
+                                x-show="!remoteStatus.active" 
+                                @click="toggleTunnel()"
+                                :disabled="tunnelLoading">
+                            <i x-show="tunnelLoading" data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i>
+                            Start Tunnel
+                        </button>
+                        
+                        <button class="w-full bg-[var(--danger-color)] hover:bg-red-600 text-white py-2 rounded-[8px] text-[13px] font-medium transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" 
+                                x-show="remoteStatus.active" 
+                                @click="toggleTunnel()"
+                                :disabled="tunnelLoading">
+                            <i x-show="tunnelLoading" data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i>
+                            Stop Tunnel
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Token Reset -->
+                <div class="w-full border-t border-[var(--glass-border)] pt-4">
+                    <button class="text-[12px] text-white/40 hover:text-[var(--accent-color)] transition-colors flex items-center justify-center gap-1.5 mx-auto" @click="regenerateToken()">
+                        <i data-lucide="refresh-cw" class="w-3 h-3"></i>
+                        Regenerate Access Token
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
