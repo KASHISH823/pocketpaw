@@ -20,7 +20,6 @@ import logging
 from pocketclaw.agents.router import AgentRouter
 from pocketclaw.bootstrap import AgentContextBuilder
 from pocketclaw.bus import InboundMessage, OutboundMessage, SystemEvent, get_message_bus
-from pocketclaw.bus.events import Channel
 from pocketclaw.config import Settings, get_settings
 from pocketclaw.memory import get_memory_manager
 from pocketclaw.security.injection_scanner import ThreatLevel, get_injection_scanner
@@ -153,8 +152,9 @@ class AgentLoop:
             )
 
             # 2. Build dynamic system prompt (identity + memory context + channel hint)
+            sender_id = message.sender_id
             system_prompt = await self.context_builder.build_system_prompt(
-                user_query=content, channel=message.channel
+                user_query=content, channel=message.channel, sender_id=sender_id
             )
 
             # 2a. Retrieve session history with compaction
@@ -318,7 +318,12 @@ class AgentLoop:
                 ) or (self.settings.memory_backend == "file" and self.settings.file_auto_learn)
                 if should_auto_learn:
                     asyncio.create_task(
-                        self._auto_learn(message.content, full_response, session_key)
+                        self._auto_learn(
+                            message.content,
+                            full_response,
+                            session_key,
+                            sender_id=sender_id,
+                        )
                     )
 
         except Exception as e:
@@ -344,7 +349,13 @@ class AgentLoop:
             OutboundMessage(channel=original.channel, chat_id=original.chat_id, content=content)
         )
 
-    async def _auto_learn(self, user_msg: str, assistant_msg: str, session_key: str) -> None:
+    async def _auto_learn(
+        self,
+        user_msg: str,
+        assistant_msg: str,
+        session_key: str,
+        sender_id: str | None = None,
+    ) -> None:
         """Background task: feed conversation turn for fact extraction."""
         try:
             messages = [
@@ -352,7 +363,9 @@ class AgentLoop:
                 {"role": "assistant", "content": assistant_msg},
             ]
             result = await self.memory.auto_learn(
-                messages, file_auto_learn=self.settings.file_auto_learn
+                messages,
+                file_auto_learn=self.settings.file_auto_learn,
+                sender_id=sender_id,
             )
             extracted = len(result.get("results", []))
             if extracted:
