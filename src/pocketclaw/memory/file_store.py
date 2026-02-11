@@ -193,7 +193,7 @@ class FileMemoryStore:
         """Atomic write of session index (write to .tmp then rename)."""
         tmp = self._index_path.with_suffix(".tmp")
         tmp.write_text(json.dumps(index, indent=2), encoding="utf-8")
-        tmp.rename(self._index_path)
+        tmp.replace(self._index_path)
 
     def _update_session_index(
         self, session_key: str, entry: MemoryEntry, session_data: list[dict]
