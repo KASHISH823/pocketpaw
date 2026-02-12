@@ -1,7 +1,8 @@
 """Mission Control data models.
 
 Created: 2026-02-05
-Updated: 2026-02-12 — Extended Task model with Deep Work fields:
+Updated: 2026-02-12 — Added SKIPPED status to TaskStatus enum for Deep Work
+  skip-task feature. Extended Task model with Deep Work fields:
   - project_id: optional project grouping
   - task_type: "agent" | "human" | "review"
   - blocks: list of task IDs this task blocks
@@ -63,6 +64,7 @@ class TaskStatus(str, Enum):
     REVIEW = "review"  # Done, needs approval
     DONE = "done"  # Completed
     BLOCKED = "blocked"  # Stuck, needs resolution
+    SKIPPED = "skipped"  # Manually skipped by user
 
 
 class TaskPriority(str, Enum):
