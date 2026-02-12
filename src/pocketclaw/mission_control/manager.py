@@ -19,11 +19,16 @@ that combine storage operations with business logic:
 - Project lifecycle management (Deep Work)
 """
 
+from __future__ import annotations
+
 import logging
 import re
 import shutil
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from pocketclaw.deep_work.models import Project
 
 from pocketclaw.mission_control.models import (
     Activity,
@@ -48,6 +53,18 @@ logger = logging.getLogger(__name__)
 
 # Regex for @mentions (e.g., @Jarvis, @all)
 MENTION_PATTERN = re.compile(r"@(\w+)", re.IGNORECASE)
+
+# Base directory for Deep Work project files (visible to user)
+_PROJECTS_BASE = Path.home() / "pocketpaw-projects"
+
+
+def get_project_dir(project_id: str) -> Path:
+    """Return the on-disk directory for a project's working files.
+
+    Projects are stored in ~/pocketpaw-projects/{id}/ so they're
+    easy to find and browse in the user's home directory.
+    """
+    return _PROJECTS_BASE / project_id
 
 
 class MissionControlManager:
@@ -243,6 +260,20 @@ class MissionControlManager:
     async def get_task(self, task_id: str) -> Task | None:
         """Get a task by ID."""
         return await self._store.get_task(task_id)
+
+    async def save_task(self, task: Task) -> str:
+        """Save or update a task (low-level).
+
+        Use this instead of accessing _store directly to keep writes
+        routed through the manager.
+
+        Args:
+            task: Task to save.
+
+        Returns:
+            The task ID.
+        """
+        return await self._store.save_task(task)
 
     async def list_tasks(
         self,
@@ -496,6 +527,14 @@ class MissionControlManager:
 
         return document
 
+    async def save_document(self, document: Document) -> str:
+        """Save or update a document (low-level)."""
+        return await self._store.save_document(document)
+
+    async def save_activity(self, activity: Activity) -> str:
+        """Save an activity (low-level)."""
+        return await self._store.save_activity(activity)
+
     async def get_document(self, document_id: str) -> Document | None:
         """Get a document by ID."""
         return await self._store.get_document(document_id)
@@ -508,6 +547,10 @@ class MissionControlManager:
     ) -> list[Document]:
         """List documents with optional filters."""
         return await self._store.list_documents(doc_type, task_id, tags)
+
+    async def get_task_documents(self, task_id: str) -> list[Document]:
+        """Get all documents linked to a task."""
+        return await self._store.list_documents(task_id=task_id)
 
     async def update_document(
         self, document_id: str, content: str, editor_id: str | None = None
@@ -555,7 +598,7 @@ class MissionControlManager:
         description: str = "",
         creator_id: str = "human",
         tags: list[str] | None = None,
-    ) -> "Project":
+    ) -> Project:
         """Create a new project and log the activity.
 
         Args:
@@ -579,7 +622,7 @@ class MissionControlManager:
         await self._store.save_project(project)
 
         # Create project directory on disk
-        project_dir = Path.home() / ".pocketclaw" / "projects" / project.id
+        project_dir = get_project_dir(project.id)
         project_dir.mkdir(parents=True, exist_ok=True)
 
         # Log activity (reuse TASK_CREATED for project creation)
@@ -592,11 +635,11 @@ class MissionControlManager:
         logger.info(f"Created project: {title} (dir: {project_dir})")
         return project
 
-    async def get_project(self, project_id: str) -> "Project | None":
+    async def get_project(self, project_id: str) -> Project | None:
         """Get a project by ID."""
         return await self._store.get_project(project_id)
 
-    async def list_projects(self, status: str | None = None) -> "list[Project]":
+    async def list_projects(self, status: str | None = None) -> list[Project]:
         """List all projects, optionally filtered by status."""
         return await self._store.list_projects(status)
 
@@ -609,7 +652,7 @@ class MissionControlManager:
         Returns:
             List of tasks with matching project_id
         """
-        all_tasks = await self._store.list_tasks()
+        all_tasks = await self._store.list_tasks(limit=0)
         return [t for t in all_tasks if t.project_id == project_id]
 
     async def get_project_progress(self, project_id: str) -> dict[str, Any]:
@@ -646,7 +689,7 @@ class MissionControlManager:
             "percent": round(percent, 1),
         }
 
-    async def update_project(self, project: "Project") -> str:
+    async def update_project(self, project: Project) -> str:
         """Update a project.
 
         Args:
@@ -674,7 +717,7 @@ class MissionControlManager:
             await self._store.delete_task(task.id)
 
         # Remove project directory from disk
-        project_dir = Path.home() / ".pocketclaw" / "projects" / project_id
+        project_dir = get_project_dir(project_id)
         if project_dir.exists():
             shutil.rmtree(project_dir)
             logger.info(f"Removed project directory: {project_dir}")
@@ -693,7 +736,7 @@ class MissionControlManager:
         projects = await self._store.list_projects()
         created = 0
         for project in projects:
-            project_dir = Path.home() / ".pocketclaw" / "projects" / project.id
+            project_dir = get_project_dir(project.id)
             if not project_dir.exists():
                 project_dir.mkdir(parents=True, exist_ok=True)
                 created += 1
