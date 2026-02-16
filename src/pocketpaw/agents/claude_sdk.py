@@ -846,9 +846,35 @@ class ClaudeAgentSDK:
                         logger.debug(f"SystemMessage: {subtype}")
                         continue
 
-                    # ========== UserMessage - echo, skip ==========
+                    # ========== UserMessage - extract media from tool results ==========
                     if self._UserMessage and isinstance(event, self._UserMessage):
-                        logger.debug("UserMessage (echo), skipping")
+                        # UserMessages in multi-turn SDK flow contain ToolResultBlocks
+                        # with the raw output of Bash commands (including media tags).
+                        if hasattr(event, "content") and isinstance(event.content, list):
+                            for block in event.content:
+                                if not (
+                                    self._ToolResultBlock
+                                    and isinstance(block, self._ToolResultBlock)
+                                ):
+                                    continue
+                                block_content = getattr(block, "content", "")
+                                if isinstance(block_content, str):
+                                    result_text = block_content
+                                elif isinstance(block_content, list):
+                                    result_text = " ".join(
+                                        getattr(b, "text", "")
+                                        for b in block_content
+                                        if hasattr(b, "text")
+                                    )
+                                else:
+                                    continue
+                                if result_text and "<!-- media:" in result_text:
+                                    yield AgentEvent(
+                                        type="tool_result",
+                                        content=result_text,
+                                        metadata={"name": "bash"},
+                                    )
+                        logger.debug("UserMessage processed")
                         continue
 
                     # ========== AssistantMessage - main content ==========

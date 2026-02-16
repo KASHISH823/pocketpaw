@@ -2270,8 +2270,14 @@ async def websocket_endpoint(
                         settings.tts_provider = data["tts_provider"]
                     if "tts_voice" in data:
                         settings.tts_voice = data["tts_voice"]
+                    if data.get("stt_provider"):
+                        settings.stt_provider = data["stt_provider"]
                     if data.get("stt_model"):
                         settings.stt_model = data["stt_model"]
+                    if data.get("ocr_provider"):
+                        settings.ocr_provider = data["ocr_provider"]
+                    if data.get("sarvam_tts_language"):
+                        settings.sarvam_tts_language = data["sarvam_tts_language"]
                     if "self_audit_enabled" in data:
                         settings.self_audit_enabled = bool(data["self_audit_enabled"])
                     if data.get("self_audit_schedule"):
@@ -2387,6 +2393,12 @@ async def websocket_endpoint(
                                 "content": "✅ Spotify Client Secret saved!",
                             }
                         )
+                    elif provider == "sarvam" and key:
+                        settings.sarvam_api_key = key
+                        settings.save()
+                        await websocket.send_json(
+                            {"type": "message", "content": "✅ Sarvam AI API key saved!"}
+                        )
                     else:
                         await websocket.send_json(
                             {"type": "error", "content": "Invalid API key or provider"}
@@ -2430,7 +2442,10 @@ async def websocket_endpoint(
                             "modelTierComplex": settings.model_tier_complex,
                             "ttsProvider": settings.tts_provider,
                             "ttsVoice": settings.tts_voice,
+                            "sttProvider": settings.stt_provider,
                             "sttModel": settings.stt_model,
+                            "ocrProvider": settings.ocr_provider,
+                            "sarvamTtsLanguage": settings.sarvam_tts_language,
                             "selfAuditEnabled": settings.self_audit_enabled,
                             "selfAuditSchedule": settings.self_audit_schedule,
                             "memoryBackend": settings.memory_backend,
@@ -2446,6 +2461,7 @@ async def websocket_endpoint(
                             "hasGoogleOAuthSecret": bool(settings.google_oauth_client_secret),
                             "hasSpotifyClientId": bool(settings.spotify_client_id),
                             "hasSpotifyClientSecret": bool(settings.spotify_client_secret),
+                            "hasSarvamKey": bool(settings.sarvam_api_key),
                             "agentActive": agent_active,
                             "agentStatus": agent_status,
                         },

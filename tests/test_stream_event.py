@@ -66,6 +66,7 @@ def _make_sdk(settings=None):
     sdk._ResultMessage = FakeResultMessage
     sdk._UserMessage = type("UserMessage", (), {})
     sdk._SystemMessage = type("SystemMessage", (), {})
+    sdk._ToolResultBlock = type("ToolResultBlock", (), {})
     sdk._HookMatcher = lambda matcher, hooks: MagicMock()
     sdk._ClaudeAgentOptions = lambda **kw: MagicMock()
     return sdk
