@@ -1,3 +1,4 @@
+# Feature request issue template — requires codebase understanding
 name: Feature Request
 description: Suggest an improvement or new feature for PocketPaw
 labels: ["enhancement", "needs-triage"]
@@ -5,13 +6,14 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for suggesting an improvement! Please describe what you'd like and why.
+        Thanks for suggesting an improvement. Please demonstrate that you've explored the codebase
+        before proposing changes. Requests without evidence of codebase familiarity will be closed.
 
   - type: textarea
     id: problem
     attributes:
-      label: Problem / Motivation
-      description: What problem does this solve or what use case does it enable?
+      label: Problem Statement
+      description: What problem does this solve? Why is it needed?
       placeholder: "I'm trying to do X but currently..."
     validations:
       required: true
@@ -20,8 +22,19 @@ body:
     id: solution
     attributes:
       label: Proposed Solution
-      description: How do you think this should work? A rough idea is fine.
-      placeholder: "It would be great if PocketPaw could..."
+      description: How would you implement this? Be specific about the approach.
+      placeholder: "I would modify X to do Y by..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: files
+    attributes:
+      label: Files That Would Need Changes
+      description: Which source files would this touch? This shows you've read the codebase.
+      placeholder: |
+        - src/pocketpaw/dashboard.py (add new route)
+        - src/pocketpaw/config.py (add new setting)
     validations:
       required: true
 
@@ -29,7 +42,7 @@ body:
     id: alternatives
     attributes:
       label: Alternatives Considered
-      description: Any other approaches you thought about?
+      description: What other approaches did you think about? Why is your proposal better?
     validations:
       required: false
 
@@ -46,5 +59,9 @@ body:
     attributes:
       label: Before submitting
       options:
+        - label: I have explored the PocketPaw codebase and understand the relevant modules
+          required: true
         - label: I have searched existing issues and this is not a duplicate
+          required: true
+        - label: I have identified the specific files this would affect
           required: true
