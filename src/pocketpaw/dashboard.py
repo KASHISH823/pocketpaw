@@ -47,8 +47,8 @@ from pocketpaw.api.v1 import mount_v1_routers
 from pocketpaw.bootstrap import DefaultBootstrapProvider
 from pocketpaw.config import Settings, get_access_token, get_config_path
 from pocketpaw.dashboard_auth import (
+    AuthMiddleware,
     _is_genuine_localhost,  # noqa: F401 — re-export for backward compat
-    auth_middleware,
     auth_router,
     verify_token,  # noqa: F401 — re-export for backward compat
 )
@@ -186,8 +186,8 @@ app.include_router(channels_router)
 # Mount auth router (session tokens, cookie login/logout, QR code, token regeneration)
 app.include_router(auth_router)
 
-# Register auth middleware (comprehensive version from dashboard_auth.py)
-app.middleware("http")(auth_middleware)
+# Register auth middleware — pure ASGI class that explicitly passes WebSocket through
+app.add_middleware(AuthMiddleware)
 
 
 @app.on_event("startup")

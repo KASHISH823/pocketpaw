@@ -51,9 +51,9 @@ def create_api_app():
     )
 
     # --- Auth middleware -------------------------------------------------
-    from pocketpaw.dashboard_auth import auth_middleware
+    from pocketpaw.dashboard_auth import AuthMiddleware
 
-    app.middleware("http")(auth_middleware)
+    app.add_middleware(AuthMiddleware)
 
     # --- Mount all /api/v1/ routers -------------------------------------
     mount_v1_routers(app)

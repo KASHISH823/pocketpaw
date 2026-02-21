@@ -12,7 +12,7 @@ import io
 import logging
 
 from fastapi import APIRouter, Query, Request
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 
 from pocketpaw.config import Settings, get_access_token, regenerate_token
 from pocketpaw.dashboard_state import _LOCALHOST_ADDRS, _PROXY_HEADERS
@@ -98,12 +98,52 @@ async def verify_token(
 
 
 # ---------------------------------------------------------------------------
-# HTTP auth middleware (registered by dashboard.py via app.middleware)
+# HTTP auth middleware (registered by dashboard.py via app.add_middleware)
 # ---------------------------------------------------------------------------
 
 
-async def auth_middleware(request: Request, call_next):
-    # Exempt routes
+class AuthMiddleware:
+    """Pure ASGI middleware — explicitly passes WebSocket through.
+
+    Using a raw ASGI class instead of ``BaseHTTPMiddleware`` avoids known
+    issues with Starlette's ``@app.middleware("http")`` blocking WebSocket
+    connections in certain middleware stack configurations.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            # WebSocket / lifespan — pass through immediately
+            await self.app(scope, receive, send)
+            return
+        # HTTP — run the auth dispatch
+        request = Request(scope, receive, send)
+        rejection = await _auth_dispatch(request)
+        if rejection is not None:
+            await rejection(scope, receive, send)
+            return
+        # Allowed — inject rate-limit headers into the downstream response
+        rl_headers = getattr(request.state, "rate_limit_headers", None)
+        if rl_headers:
+
+            async def send_with_headers(message):
+                if message.get("type") == "http.response.start":
+                    headers = list(message.get("headers", []))
+                    for k, v in rl_headers.items():
+                        headers.append((k.lower().encode(), v.encode()))
+                    message = {**message, "headers": headers}
+                await send(message)
+
+            await self.app(scope, receive, send_with_headers)
+        else:
+            await self.app(scope, receive, send)
+
+
+async def _auth_dispatch(request: Request) -> Response | None:
+    """Core HTTP auth logic.  Return a Response to reject, or None to allow through."""
+    # Exempt routes — return None to let the request through
     exempt_paths = [
         "/static",
         "/favicon.ico",
@@ -125,7 +165,7 @@ async def auth_middleware(request: Request, call_next):
 
     for path in exempt_paths:
         if request.url.path.startswith(path):
-            return await call_next(request)
+            return None  # allow through
 
     # Rate limiting — pick tier based on path
     client_ip = request.client.host if request.client else "unknown"
@@ -237,25 +277,19 @@ async def auth_middleware(request: Request, call_next):
         is_valid = True
 
     # Allow frontend assets (/, /static/*) through for SPA bootstrap.
-    # Only match explicit static asset paths — never suffix-match, as that
-    # would let crafted URLs like /api/secrets/steal.js bypass auth.
     if request.url.path == "/" or request.url.path.startswith("/static/"):
-        return await call_next(request)
+        return None  # allow through
 
     # API Protection
     if request.url.path.startswith("/api") or request.url.path.startswith("/ws"):
         if not is_valid:
             return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
 
-    response = await call_next(request)
+    return None  # allow through
 
-    # Attach rate limit headers to every response
-    rl_headers = getattr(request.state, "rate_limit_headers", None)
-    if rl_headers:
-        for k, v in rl_headers.items():
-            response.headers[k] = v
 
-    return response
+# Backward-compat alias (was previously registered via app.middleware("http"))
+auth_middleware = _auth_dispatch
 
 
 # ---------------------------------------------------------------------------
