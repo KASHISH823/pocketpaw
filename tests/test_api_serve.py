@@ -90,7 +90,7 @@ class TestNoDashboardUI:
 class TestAuthMiddleware:
     def test_unauthenticated_request_blocked(self, client):
         """Non-localhost requests without a token should be rejected."""
-        with patch("pocketpaw.dashboard._is_genuine_localhost", return_value=False):
+        with patch("pocketpaw.dashboard_auth._is_genuine_localhost", return_value=False):
             resp = client.get("/api/v1/health")
             assert resp.status_code == 401
 
