@@ -68,26 +68,18 @@ powershell -NoExit -Command "iwr -useb https://pocketpaw.xyz/install.ps1 | iex"
 ```
 
 Or install manually with pip:
-# Check Python version (3.11 recommended)
 python --version
 
-# Upgrade pip
 python -m pip install --upgrade pip
 
-# (Recommended) Create virtual environment
 python -m venv venv
 
-# Activate virtual environment
-# macOS/Linux
 source venv/bin/activate
 
-# Windows
 venv\Scripts\activate
 
-# Install pocketpaw
 pip install pocketpaw
 
-# Run pocketpaw
 pocketpaw
 
 > **Note:** Some features (browser automation, shell tools) work best under WSL2. Native Windows support covers the web dashboard and all LLM chat features.
